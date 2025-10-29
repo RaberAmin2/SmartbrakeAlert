@@ -1,3 +1,9 @@
 <resources>
     <string name="app_name">SmartBrakeAlert</string>
+    <string name="permission_rationale">Die App benötigt Kamera-, Standort- und Audiozugriff, um Warnungen zu berechnen.</string>
+    <string name="permission_settings">Bitte erteile die fehlenden Berechtigungen in den Einstellungen.</string>
+    <string name="speed_placeholder">-- km/h</string>
+    <string name="ttc_placeholder">TTC: -- s</string>
+    <string name="speed_format">%1$.1f km/h</string>
+    <string name="ttc_format">TTC: %1$.1f s</string>
 </resources>
