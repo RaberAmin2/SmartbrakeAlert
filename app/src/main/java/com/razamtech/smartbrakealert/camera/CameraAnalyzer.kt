@@ -11,6 +11,8 @@ import org.tensorflow.lite.support.common.ops.NormalizeOp
 import org.tensorflow.lite.support.image.ImageProcessor
 import org.tensorflow.lite.support.image.TensorImage
 import org.tensorflow.lite.support.image.ops.ResizeOp
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 
 class CameraAnalyzer(
     context: Context,
@@ -18,9 +20,10 @@ class CameraAnalyzer(
     private val onResult: (DetectionResult?) -> Unit
 ) : ImageAnalysis.Analyzer {
 
-    private val interpreter: Interpreter? = runCatching {
-        Interpreter(FileUtil.loadMappedFile(context, MODEL_FILE))
-    }.getOrNull()
+    private val modelBuffer: ByteBuffer? = loadModelBuffer(context)
+    private val interpreter: Interpreter? = modelBuffer?.let { buffer ->
+        runCatching { Interpreter(buffer) }.getOrNull()
+    }
     private val labels: List<String> = runCatching {
         FileUtil.loadLabels(context, LABELS_FILE)
     }.getOrDefault(DEFAULT_LABELS)
@@ -142,5 +145,17 @@ class CameraAnalyzer(
         private const val CONFIDENCE_THRESHOLD = 0.3f
         private val VEHICLE_LABELS = setOf("car", "bus", "truck", "motorcycle", "bicycle")
         private val DEFAULT_LABELS = listOf("person", "bicycle", "car", "motorcycle", "airplane", "bus")
+    }
+
+    private fun loadModelBuffer(context: Context): ByteBuffer? {
+        return runCatching {
+            context.assets.open(MODEL_FILE).use { inputStream ->
+                val bytes = inputStream.readBytes()
+                ByteBuffer.allocateDirect(bytes.size).order(ByteOrder.nativeOrder()).apply {
+                    put(bytes)
+                    rewind()
+                }
+            }
+        }.getOrNull()
     }
 }
