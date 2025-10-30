@@ -1,6 +1,7 @@
 package com.razamtech.smartbrakealert.camera
 
 import android.content.Context
+import android.util.Log
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
 import kotlin.math.roundToInt
@@ -75,10 +76,21 @@ class CameraAnalyzer(
                 .maxByOrNull { it.value } ?: continue
 
             val label = labels.getOrElse(classIndex) { classIndex.toString() }
-            if (label !in VEHICLE_LABELS) continue
-
             val confidence = (objectness * classConfidence).coerceIn(0f, 1f)
-            if (confidence < CONFIDENCE_THRESHOLD || confidence <= bestConfidence) continue
+
+            val detectionInfo = "label=$label objectness=${"%.2f".format(objectness)} " +
+                "classConfidence=${"%.2f".format(classConfidence)} confidence=${"%.2f".format(confidence)}"
+
+            if (label !in VEHICLE_LABELS) {
+                Log.d(TAG, "Inference skipped (non-vehicle): $detectionInfo")
+                continue
+            }
+
+            if (confidence < CONFIDENCE_THRESHOLD || confidence <= bestConfidence) {
+                val reason = if (confidence <= bestConfidence) "lower than best" else "below threshold"
+                Log.d(TAG, "Inference skipped ($reason): $detectionInfo")
+                continue
+            }
 
             val bboxWidth = detection[2] * scaleX
             val bboxHeight = detection[3] * scaleY
@@ -94,13 +106,29 @@ class CameraAnalyzer(
             val right = (centerX + halfWidth).coerceIn(0f, imageWidth)
             val bottom = (centerY + halfHeight).coerceIn(0f, imageHeight)
 
-            if (right <= left || bottom <= top) continue
+            if (right <= left || bottom <= top) {
+                Log.d(
+                    TAG,
+                    "Inference skipped (invalid bbox): $detectionInfo width=${"%.2f".format(bboxWidth)} " +
+                        "height=${"%.2f".format(bboxHeight)}"
+                )
+                continue
+            }
 
             val normalizedBoundingBox = BoundingBox(
                 left = left / imageWidth,
                 top = top / imageHeight,
                 right = right / imageWidth,
                 bottom = bottom / imageHeight
+            )
+
+            Log.d(
+                TAG,
+                "Inference accepted: $detectionInfo distance=${"%.2f".format(distanceMeters)}m " +
+                    "bbox=[l=${"%.2f".format(normalizedBoundingBox.left)}, " +
+                    "t=${"%.2f".format(normalizedBoundingBox.top)}, " +
+                    "r=${"%.2f".format(normalizedBoundingBox.right)}, " +
+                    "b=${"%.2f".format(normalizedBoundingBox.bottom)}]"
             )
 
             bestConfidence = confidence
@@ -137,6 +165,7 @@ class CameraAnalyzer(
     }
 
     companion object {
+        private const val TAG = "CameraAnalyzer"
         private const val MODEL_FILE = "yolov11n.tflite"
         private const val LABELS_FILE = "labels.txt"
         private const val CONFIDENCE_THRESHOLD = 0.3f
