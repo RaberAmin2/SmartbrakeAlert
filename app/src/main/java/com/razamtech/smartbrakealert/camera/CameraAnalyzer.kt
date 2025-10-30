@@ -7,9 +7,9 @@ import kotlin.math.roundToInt
 import org.tensorflow.lite.DataType
 import org.tensorflow.lite.Interpreter
 import org.tensorflow.lite.support.common.FileUtil
+import org.tensorflow.lite.support.common.ops.NormalizeOp
 import org.tensorflow.lite.support.image.ImageProcessor
 import org.tensorflow.lite.support.image.TensorImage
-import org.tensorflow.lite.support.image.ops.NormalizeOp
 import org.tensorflow.lite.support.image.ops.ResizeOp
 
 class CameraAnalyzer(

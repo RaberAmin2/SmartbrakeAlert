@@ -34,6 +34,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import java.util.concurrent.ExecutorService
@@ -132,8 +133,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun onPermissionsGranted() {
-        setupCamera()
-        speedSensor.start()
+        lifecycleScope.launch {
+            delay(300)
+            setupCamera()
+            speedSensor.start()
+        }
     }
 
     private fun showPermissionRationale() {

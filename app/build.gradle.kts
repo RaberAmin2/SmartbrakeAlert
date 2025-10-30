@@ -5,7 +5,7 @@ plugins {
 
 android {
     namespace = "com.razamtech.smartbrakealert"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.razamtech.smartbrakealert"
