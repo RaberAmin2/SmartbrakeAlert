@@ -9,7 +9,7 @@ Sie imitiert einen **Notbremsassistenten**, jedoch ausschließlich als **Warnsys
 Die App verwendet:
 
 * **CameraX** für die Live-Kameraaufnahme
-* **TensorFlow-Lite (YOLOv8-Nano quantisiert)** zur Objekterkennung
+* **TensorFlow-Lite (YOLOv11-Nano quantisiert)** zur Objekterkennung
 * **GPS-Sensor** zur Geschwindigkeitsmessung
 * **Echtzeit-Logik** zur Berechnung der **Zeit-bis-Kollision (TTC)**
 * **Akustische und visuelle Warnsignale**, wenn Gefahr erkannt wird
@@ -36,7 +36,8 @@ SmartBrakeAlert/
  │   │         ├── OverlayView.kt
  │   │         └── SoundAlert.kt
  │   ├── assets/
- │   │    └── model.tflite
+ │   │    ├── labels.txt
+ │   │    └── yolov11n.tflite
  │   └── res/
  │        ├── layout/activity_main.xml
  │        └── values/strings.xml
@@ -93,7 +94,7 @@ dependencies {
 ### **camera/CameraAnalyzer.kt**
 
 * Nutzt **CameraX** (`ImageAnalysis.Analyzer`)
-* Führt YOLO-Inference per TensorFlow-Lite durch
+* Führt YOLOv11-Inference per TensorFlow-Lite durch
 * Gibt pro Frame `DetectionResult(label, distance, confidence)` zurück
 
 **Kernfunktion:**
@@ -196,7 +197,7 @@ fun playWarning(context: Context)
 ## 📡 Datenflussdiagramm
 
 ```
-CameraX → YOLOv8 (TFLite) → DetectionResult
+CameraX → YOLOv11 (TFLite) → DetectionResult
                  ↓
            DistanceEstimator
                  ↓
@@ -259,7 +260,7 @@ if (ttc < 2 && distance < 10) {
 
 | Bereich  | Optimierung                                |
 | -------- | ------------------------------------------ |
-| Inferenz | quantisiertes YOLOv8-Nano `.tflite` (INT8) |
+| Inferenz | quantisiertes YOLOv11-Nano `.tflite` (INT8) |
 | Kamera   | `ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST`  |
 | FPS      | Ziel: 15 – 20 fps                          |
 | Energie  | Sensor-Polling nur bei aktiver Fahrt       |
