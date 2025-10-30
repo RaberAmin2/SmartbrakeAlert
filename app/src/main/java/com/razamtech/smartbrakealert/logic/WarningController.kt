@@ -15,7 +15,14 @@ class WarningController(
 
     fun onDetection(result: DetectionResult, ttc: Double?) {
         val level = determineLevel(result.distanceMeters, ttc)
-        overlayView.updateDanger(level, result.distanceMeters, ttc, result.confidence)
+        overlayView.updateDanger(
+            level = level,
+            distance = result.distanceMeters,
+            ttc = ttc,
+            confidence = result.confidence,
+            boundingBoxes = listOf(result.boundingBox),
+            label = result.label
+        )
         triggerSound(level)
     }
 

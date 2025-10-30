@@ -7,6 +7,7 @@ import android.graphics.Paint
 import android.graphics.RectF
 import android.util.AttributeSet
 import android.view.View
+import com.razamtech.smartbrakealert.camera.BoundingBox
 import java.util.Locale
 
 class OverlayView @JvmOverloads constructor(
@@ -33,13 +34,24 @@ class OverlayView @JvmOverloads constructor(
     private var distanceMeters: Double? = null
     private var ttcSeconds: Double? = null
     private var confidence: Float? = null
-    private val bbox = RectF()
+    private var boundingBoxes: List<BoundingBox> = emptyList()
+    private var detectionLabel: String? = null
+    private val tempRect = RectF()
 
-    fun updateDanger(level: Int, distance: Double?, ttc: Double?, confidence: Float?) {
+    fun updateDanger(
+        level: Int,
+        distance: Double?,
+        ttc: Double?,
+        confidence: Float?,
+        boundingBoxes: List<BoundingBox> = emptyList(),
+        label: String? = null
+    ) {
         dangerLevel = level
         distanceMeters = distance
         ttcSeconds = ttc
         this.confidence = confidence
+        this.boundingBoxes = boundingBoxes
+        detectionLabel = label
         postInvalidateOnAnimation()
     }
 
@@ -53,33 +65,67 @@ class OverlayView @JvmOverloads constructor(
         backgroundPaint.color = color
         canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), backgroundPaint)
 
-        if (dangerLevel == 0) {
+        val boxes = boundingBoxes
+        if (boxes.isEmpty()) {
             drawStatusText(canvas, "Bereit", Color.WHITE)
             return
         }
 
-        val boxPadding = width.coerceAtMost(height) * 0.1f
-        bbox.set(
-            boxPadding,
-            boxPadding,
-            width - boxPadding,
-            height - boxPadding
-        )
-        framePaint.color = if (dangerLevel == 2) Color.RED else Color.YELLOW
-        canvas.drawRoundRect(bbox, 32f, 32f, framePaint)
+        framePaint.color = when (dangerLevel) {
+            2 -> Color.RED
+            1 -> Color.YELLOW
+            else -> Color.WHITE
+        }
 
-        val distanceText = distanceMeters?.let { "Distanz: ${String.format(Locale.getDefault(), "%.1f", it)} m" }
-        val ttcText = ttcSeconds?.let { "TTC: ${String.format(Locale.getDefault(), "%.1f", it)} s" }
-        val confidenceText = confidence?.let { "Konfidenz: ${String.format(Locale.getDefault(), "%.0f", it * 100)}%" }
-        val lines = listOfNotNull(distanceText, ttcText, confidenceText)
-        if (lines.isEmpty()) return
+        textPaint.color = Color.WHITE
+        textPaint.textSize = (width * 0.035f).coerceAtLeast(28f)
 
-        textPaint.textSize = (width * 0.04f).coerceAtLeast(32f)
-        var offsetY = height / 2f - (lines.size - 1) * textPaint.textSize / 2
-        for (line in lines) {
+        boxes.forEach { box ->
+            val clampedLeft = box.left.coerceIn(0f, 1f)
+            val clampedTop = box.top.coerceIn(0f, 1f)
+            val clampedRight = box.right.coerceIn(0f, 1f)
+            val clampedBottom = box.bottom.coerceIn(0f, 1f)
+
+            tempRect.set(
+                clampedLeft * width,
+                clampedTop * height,
+                clampedRight * width,
+                clampedBottom * height
+            )
+            canvas.drawRoundRect(tempRect, 28f, 28f, framePaint)
+        }
+
+        val infoLines = buildInfoLines()
+        if (infoLines.isEmpty()) {
+            return
+        }
+
+        val primaryRect = RectF().apply {
+            val first = boxes.first()
+            set(
+                first.left.coerceIn(0f, 1f) * width,
+                first.top.coerceIn(0f, 1f) * height,
+                first.right.coerceIn(0f, 1f) * width,
+                first.bottom.coerceIn(0f, 1f) * height
+            )
+        }
+
+        val margin = 24f
+        val lineHeight = textPaint.textSize * 1.1f
+        val totalTextHeight = lineHeight * infoLines.size
+        var startY = primaryRect.bottom + margin + textPaint.textSize
+        if (startY + totalTextHeight > height - margin) {
+            startY = (primaryRect.top - margin - totalTextHeight)
+                .coerceAtLeast(margin + textPaint.textSize)
+        }
+
+        var offsetY = startY
+        val baseX = (primaryRect.left + margin).coerceAtLeast(margin)
+        for (line in infoLines) {
             val textWidth = textPaint.measureText(line)
-            canvas.drawText(line, width / 2f - textWidth / 2f, offsetY, textPaint)
-            offsetY += textPaint.textSize * 1.2f
+            val x = baseX.coerceIn(margin, width - margin - textWidth)
+            canvas.drawText(line, x, offsetY, textPaint)
+            offsetY += lineHeight
         }
     }
 
@@ -90,5 +136,24 @@ class OverlayView @JvmOverloads constructor(
         val baseLine = height / 2f + textPaint.textSize / 2f
         canvas.drawText(text, width / 2f - textWidth / 2f, baseLine, textPaint)
         textPaint.color = Color.WHITE
+    }
+
+    private fun buildInfoLines(): List<String> {
+        val locale = Locale.getDefault()
+        val distanceText = distanceMeters?.let {
+            "Distanz: ${String.format(locale, "%.1f", it)} m"
+        }
+        val ttcText = ttcSeconds?.let {
+            "TTC: ${String.format(locale, "%.1f", it)} s"
+        }
+        val confidenceText = confidence?.let {
+            "Konfidenz: ${String.format(locale, "%.0f", it * 100)}%"
+        }
+        val labelText = detectionLabel?.takeIf { it.isNotBlank() }?.let {
+            it.replaceFirstChar { char ->
+                if (char.isLowerCase()) char.titlecase(locale) else char.toString()
+            }
+        }
+        return listOfNotNull(labelText, distanceText, ttcText, confidenceText)
     }
 }

@@ -57,7 +57,10 @@ class CameraAnalyzer(
         inputBuffer.rewind()
         interpreter.run(inputBuffer, outputBuffer)
 
-        val scaleX = image.width / inputWidth.toFloat()
+        val scaleX = if (inputWidth > 0) image.width / inputWidth.toFloat() else 1f
+        val scaleY = if (inputHeight > 0) image.height / inputHeight.toFloat() else 1f
+        val imageWidth = image.width.toFloat().coerceAtLeast(1f)
+        val imageHeight = image.height.toFloat().coerceAtLeast(1f)
         val detections = outputBuffer[0]
 
         var bestResult: DetectionResult? = null
@@ -78,14 +81,34 @@ class CameraAnalyzer(
             if (confidence < CONFIDENCE_THRESHOLD || confidence <= bestConfidence) continue
 
             val bboxWidth = detection[2] * scaleX
+            val bboxHeight = detection[3] * scaleY
             val bboxWidthPx = bboxWidth.roundToInt().coerceAtLeast(1)
             val distanceMeters = distanceEstimator.estimateMeters(bboxWidthPx, image.width)
+
+            val centerX = detection[0] * scaleX
+            val centerY = detection[1] * scaleY
+            val halfWidth = bboxWidth / 2f
+            val halfHeight = bboxHeight / 2f
+            val left = (centerX - halfWidth).coerceIn(0f, imageWidth)
+            val top = (centerY - halfHeight).coerceIn(0f, imageHeight)
+            val right = (centerX + halfWidth).coerceIn(0f, imageWidth)
+            val bottom = (centerY + halfHeight).coerceIn(0f, imageHeight)
+
+            if (right <= left || bottom <= top) continue
+
+            val normalizedBoundingBox = BoundingBox(
+                left = left / imageWidth,
+                top = top / imageHeight,
+                right = right / imageWidth,
+                bottom = bottom / imageHeight
+            )
 
             bestConfidence = confidence
             bestResult = DetectionResult(
                 label = label,
                 distanceMeters = distanceMeters,
-                confidence = confidence
+                confidence = confidence,
+                boundingBox = normalizedBoundingBox
             )
         }
 
