@@ -170,6 +170,7 @@ class MainActivity : AppCompatActivity() {
         val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
         cameraProviderFuture.addListener({
             val cameraProvider = cameraProviderFuture.get()
+            cameraProvider.unbindAll()
             bindCameraUseCases(cameraProvider)
         }, ContextCompat.getMainExecutor(this))
     }
